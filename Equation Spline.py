@@ -6,6 +6,8 @@ app = adsk.core.Application.get()
 ui = app.userInterface
 handlers = []
 
+LIMIT_CM = 1000.0
+
 def is_input_safe(text):
     pattern = r'^[a-zA-Z0-9\s\+\-\*\/\.\(\),\^]*$'
     return bool(re.match(pattern, text) and "__" not in text)
@@ -25,7 +27,9 @@ class EquationSplinePreviewHandler(adsk.core.CommandEventHandler):
             res = inputs.itemById('res').valueOne
             scale = inputs.itemById('scale').value
             fit_type = inputs.itemById('fit_type').selectedItem.name # Get selection
-
+            warning_label = inputs.itemById('warning_text')
+            # Reset warning and visibility
+            warning_label.isVisible = False
             if res < 2 or not is_input_safe(eqn_raw):
                 return 
 
@@ -43,22 +47,39 @@ class EquationSplinePreviewHandler(adsk.core.CommandEventHandler):
             
             points = [] # Use a standard list for easier iteration
             step = (x_end_cm - x_start_cm) / (res - 1)
-            
+            out_of_bounds = False
             for i in range(res):
                 current_x_cm = x_start_cm + (i * step)
-                x_for_eqn = (current_x_cm * 10.0) * scale
                 
+                # Check X-axis boundary
+                if abs(current_x_cm) > LIMIT_CM:
+                    out_of_bounds = True
+                    break
+
+                x_for_eqn = (current_x_cm * 10.0) * scale
                 safe_dict["x"] = x_for_eqn
+                
                 try:
                     y_result = eval(eqn, {"__builtins__": None}, safe_dict)
-                    
-                    # Safety Clamp: Prevent "Out of Bounds" crashes
-                    if abs(y_result) > 1e6: continue 
-                    
                     y_cm = (y_result / scale) / 10.0
+                    
+                    # Check Y-axis boundary
+                    if abs(y_cm) > LIMIT_CM:
+                        out_of_bounds = True
+                        break
+                        
                     points.append(adsk.core.Point3D.create(current_x_cm, y_cm, 0))
                 except:
                     continue 
+
+            # Display warning and exit if out of bounds
+            if out_of_bounds:
+                warning_label.formattedText = '<b style="color:red;">ERROR: Coordinates exceed 10m limit!</b>'
+                warning_label.isVisible = True
+                warning_label.numRows = 2 # Forces the UI to reserve space
+                return
+            else:
+                warning_label.isVisible = False
 
             if len(points) > 1:
                 if fit_type == "Spline (Smooth)":
@@ -93,7 +114,9 @@ class EquationSplineCreatedHandler(adsk.core.CommandCreatedEventHandler):
             dropdown = inputs.addDropDownCommandInput('fit_type', 'Fit Method', adsk.core.DropDownStyles.TextListDropDownStyle)
             dropdown.listItems.add('Lines (Fast)', True)
             dropdown.listItems.add('Spline (Smooth)', False)
-            
+            warn = inputs.addTextBoxCommandInput('warning_text', '', '', 2, True)
+            warn.isFullWidth = True
+            warn.isVisible = False
             onPreview = EquationSplinePreviewHandler()
             cmd.executePreview.add(onPreview)
             handlers.append(onPreview)
