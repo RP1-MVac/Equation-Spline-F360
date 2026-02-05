@@ -7,7 +7,7 @@ ui = app.userInterface
 handlers = []
 
 def is_input_safe(text):
-    pattern = r'^[a-zA-Z0-9\s\+\-\*\/\.\(\),]*$'
+    pattern = r'^[a-zA-Z0-9\s\+\-\*\/\.\(\),\^]*$'
     return bool(re.match(pattern, text) and "__" not in text)
 
 class EquationSplinePreviewHandler(adsk.core.CommandEventHandler):
@@ -19,14 +19,18 @@ class EquationSplinePreviewHandler(adsk.core.CommandEventHandler):
             inputs = eventArgs.command.commandInputs
             
             # --- GET INPUTS ---
-            eqn = inputs.itemById('equation').value
+            eqn_raw = inputs.itemById('equation').value
             x_start_cm = inputs.itemById('x_start').value 
             x_end_cm = inputs.itemById('x_end').value     
             res = inputs.itemById('res').valueOne
-            scale = inputs.itemById('scale').value # Scale factor (multiplier)
+            scale = inputs.itemById('scale').value
+            fit_type = inputs.itemById('fit_type').selectedItem.name # Get selection
 
-            if res < 2 or not is_input_safe(eqn):
+            if res < 2 or not is_input_safe(eqn_raw):
                 return 
+
+            # Python uses ** for power, but users often type ^
+            eqn = eqn_raw.replace('^', '**')
 
             design = adsk.fusion.Design.cast(app.activeProduct)
             rootComp = design.rootComponent
@@ -37,8 +41,7 @@ class EquationSplinePreviewHandler(adsk.core.CommandEventHandler):
                 "tan": math.tan, "sqrt": math.sqrt, "pi": math.pi, "pow": pow
             }
             
-            points = adsk.core.ObjectCollection.create()
-            
+            points = [] # Use a standard list for easier iteration
             step = (x_end_cm - x_start_cm) / (res - 1)
             
             for i in range(res):
@@ -48,17 +51,26 @@ class EquationSplinePreviewHandler(adsk.core.CommandEventHandler):
                 safe_dict["x"] = x_for_eqn
                 try:
                     y_result = eval(eqn, {"__builtins__": None}, safe_dict)
-                    y_cm = (y_result / scale) / 10.0
                     
-                    points.add(adsk.core.Point3D.create(current_x_cm, y_cm, 0))
+                    # Safety Clamp: Prevent "Out of Bounds" crashes
+                    if abs(y_result) > 1e6: continue 
+                    
+                    y_cm = (y_result / scale) / 10.0
+                    points.append(adsk.core.Point3D.create(current_x_cm, y_cm, 0))
                 except:
                     continue 
 
-            if points.count > 1:
-
-                spline = sketch.sketchCurves.sketchFittedSplines.add(points)
-                
-                spline.isFixed = True
+            if len(points) > 1:
+                if fit_type == "Spline (Smooth)":
+                    # Slow but smooth
+                    obs = adsk.core.ObjectCollection.create()
+                    for p in points: obs.add(p)
+                    spline = sketch.sketchCurves.sketchFittedSplines.add(obs)
+                    spline.isFixed = True
+                else:
+                    # Fast linear approximation
+                    for i in range(len(points) - 1):
+                        sketch.sketchCurves.sketchLines.addByTwoPoints(points[i], points[i+1])
             
             eventArgs.isValidResult = True
         except:
@@ -74,11 +86,13 @@ class EquationSplineCreatedHandler(adsk.core.CommandCreatedEventHandler):
             
             inputs.addStringValueInput('equation', 'Equation (y=)', 'sin(x)')
             inputs.addValueInput('x_start', 'Start X', 'mm', adsk.core.ValueInput.createByReal(0))
-            inputs.addValueInput('x_end', 'End X', 'mm', adsk.core.ValueInput.createByReal(2.0)) # 20mm
-            
+            inputs.addValueInput('x_end', 'End X', 'mm', adsk.core.ValueInput.createByReal(2.0))
             inputs.addValueInput('scale', 'Scale (Units/mm)', '', adsk.core.ValueInput.createByReal(1.0))
-            
-            inputs.addIntegerSliderCommandInput('res', 'Resolution', 2, 100)
+            inputs.addIntegerSliderCommandInput('res', 'Resolution', 2, 200)
+
+            dropdown = inputs.addDropDownCommandInput('fit_type', 'Fit Method', adsk.core.DropDownStyles.TextListDropDownStyle)
+            dropdown.listItems.add('Lines (Fast)', True)
+            dropdown.listItems.add('Spline (Smooth)', False)
             
             onPreview = EquationSplinePreviewHandler()
             cmd.executePreview.add(onPreview)
