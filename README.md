@@ -16,7 +16,7 @@ I was frustrated by Fusion 360's lack of an integrated equation renderer for cre
 ## Features
 
 - **Equation Input**: Enter any mathematical equation using standard Python math syntax
-- **Safe Evaluation**: Built-in safety checks to prevent malicious code execution
+- **Safe Evaluation**: Built-in safety checks to prevent code injection
 - **Customizable Parameters**: Control start/end points, resolution, and scaling
 - **Real-time Preview**: Generate splines instantly in your active sketch
 - **Supported Functions**: Includes common math functions like sin, cos, tan, sqrt, pi, and more
@@ -42,11 +42,6 @@ I was frustrated by Fusion 360's lack of an integrated equation renderer for cre
 4. Click OK to generate the spline curve in your sketch
 
 **Note**: Equations should use `x` as the variable and standard Python math syntax. Available functions include `sin`, `cos`, `tan`, `sqrt`, `pi`, `pow`, etc.
-
-## Requirements
-
-- Autodesk Fusion 360 (latest version recommended)
-- Python environment (included with Fusion 360)
 
 ## Contributing
 
