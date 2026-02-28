@@ -27,8 +27,9 @@ I was frustrated by Fusion 360's lack of an integrated equation renderer for cre
 2. Copy the entire `Equation Spline` folder to your Fusion 360 Add-Ins directory:
    - Windows: `%APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns\`
    - macOS: `~/Library/Application Support/Autodesk/Autodesk Fusion 360/API/AddIns/`
-3. Restart Fusion 360
-4. The add-in should appear in the Scripts and Add-Ins panel under "My Add-Ins"
+3. MAKE SURE THE FOLDER AND THE MANIFEST AND .PY FILE INSIDE HAVE THE SAME NAME (This is the case by default)
+4. Restart Fusion 360
+5. The add-in should appear in the Scripts and Add-Ins panel under "My Add-Ins"
 
 ## Usage
 
