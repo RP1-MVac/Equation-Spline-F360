@@ -6,6 +6,13 @@ An Autodesk Fusion 360 add-in that allows you to create spline curves from mathe
 
 I was frustrated by Fusion 360's lack of an integrated equation renderer for creating mathematical curves.
 
+## Examples
+<div style="display: flex; gap: 10px;">
+  <img src="Example_2.png" width="50%">
+  <img src="Example_1.png" width="50%">
+</div>
+
+
 ## Features
 
 - **Equation Input**: Enter any mathematical equation using standard Python math syntax
